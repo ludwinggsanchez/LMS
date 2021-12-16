@@ -69,7 +69,7 @@ func main() {
 	}
 	rand.Seed(time.Now().UnixNano())
 	//training
-	lms := LMS{0.01, []float64{}, 1}
+	lms := LMS{0.01, []float64{}, 100}
 	lms.fit(X, Y)
 
 }
@@ -140,7 +140,11 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 	}
 
 	errr := []string{}
+	var stop bool
 	for iter := 0; iter < p.iterNum; iter++ {
+		if stop {
+			break
+		}
 		for i := 0; i < len(X); i++ {
 			y_pred := p.predict(X[i])
 			if i < int(float64(len(X))*float64(0.7)) {
@@ -165,6 +169,10 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 					row = append(row, fmt.Sprintf("%.4f", p.weights[0]))
 					row = append(row, fmt.Sprintf("%.4f", p.weights[1]))
 					row = append(row, fmt.Sprintf("%.4f", p.weights[2]))
+					if c1, c2 := p.validate(X, Y, false); c1 > 0.5 && c2 > 0.5 {
+						stop = true
+						break
+					}
 				} else {
 					row = append(row, "")
 					row = append(row, "")
@@ -179,7 +187,10 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 			}
 		}
 	}
-	p.validate(X, Y)
+	m := -p.weights[1] / p.weights[2]
+	b := -p.weights[0] / p.weights[2]
+	fmt.Println("y = x * ", m, " + ", b, ";")
+	p.validate(X, Y, true)
 	data = append(data, errr)
 
 	f, err := os.Create("results.csv")
@@ -198,7 +209,7 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 }
 
 // validate tests the model given a weights vector
-func (p *LMS) validate(X [][]float64, Y []float64) {
+func (p *LMS) validate(X [][]float64, Y []float64, validacion bool) (C1out float64, C2out float64) {
 
 	C1Count := 0
 	C2Count := 0
@@ -208,8 +219,18 @@ func (p *LMS) validate(X [][]float64, Y []float64) {
 	fN := 0
 	C1Out := 0
 	C2Out := 0
+	init := 0
+	end := 0
 
-	for i := int(float64(len(X)) * 0.7); i < len(X); i++ {
+	if validacion {
+		init = int(float64(len(X)) * 0.7)
+		end = len(X)
+	} else {
+		init = 0
+		end = int(float64(len(X)) * 0.7)
+	}
+
+	for i := init; i < end; i++ {
 		y_pred := p.predict(X[i])
 		if Y[i] > 0 {
 			C1Count++
@@ -238,4 +259,6 @@ func (p *LMS) validate(X [][]float64, Y []float64) {
 		}
 	}
 	fmt.Println(C1Count, C2Count, "C1: ", C1Out, "C2: ", C2Out, "vP:", vP, "fP:", fP, "vN:", vN, "fN:", fN)
+
+	return float64(vP) / float64(C1Count), float64(vN) / float64(C2Count)
 }
