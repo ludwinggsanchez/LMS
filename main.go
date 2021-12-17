@@ -48,7 +48,7 @@ func main() {
 
 		//convert str slice to float slice
 		temp := []float64{}
-		for _, i := range data[:3] {
+		for _, i := range data[:len(data)-1] {
 			parsedValue, err := strconv.ParseFloat(i, 64)
 			if err != nil {
 				panic(err)
@@ -61,7 +61,7 @@ func main() {
 		//explaining
 		X = append(X, temp)
 		//explained
-		if data[3] == "-1" {
+		if data[len(data)-1] == "-1" {
 			Y = append(Y, -1.0)
 		} else {
 			Y = append(Y, 1.0)
@@ -69,7 +69,7 @@ func main() {
 	}
 	rand.Seed(time.Now().UnixNano())
 	//training
-	lms := LMS{0.01, []float64{}, 100}
+	lms := LMS{0.001, []float64{}, 1000}
 	lms.fit(X, Y)
 
 }
@@ -92,7 +92,7 @@ func (p *LMS) predict(x []float64) float64 {
 	return c.RawMatrix().Data[0]
 }
 
-// update updated the weights according to the LMS algorithm
+// update updates the weights according to the LMS algorithm
 func (p *LMS) update(x []float64, y float64) (errr float64) {
 	w := mat.NewDense(1, len(p.weights), p.weights)
 	xx := mat.NewDense(1, len(x), x)
@@ -143,12 +143,6 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 	var stop bool
 	for iter := 0; iter < p.iterNum; iter++ {
 		if stop {
-			fmt.Println("iter", iter)
-			// z = 1/C*(A*x + B*y + D);
-			fmt.Println("A = ", p.weights[0], ";")
-			fmt.Println("B = ", p.weights[1], ";")
-			fmt.Println("C = ", p.weights[3], ";")
-			fmt.Println("D = ", p.weights[2], ";")
 			break
 		}
 		for i := 0; i < len(X); i++ {
@@ -175,9 +169,9 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 					row = append(row, fmt.Sprintf("%.4f", p.weights[0]))
 					row = append(row, fmt.Sprintf("%.4f", p.weights[1]))
 					row = append(row, fmt.Sprintf("%.4f", p.weights[2]))
-					if c1, c2 := p.validate(X, Y, false); c1 > 0.5 && c2 > 0.5 {
+					if accRate := p.validate(X, Y, false); accRate > 0.8 {
 						stop = true
-						fmt.Println("i", i)
+						fmt.Println("worked")
 						break
 					}
 				} else {
@@ -186,16 +180,13 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 					row = append(row, "")
 					row = append(row, "")
 				}
-				m := -(p.weights[0] / p.weights[2]) / (p.weights[0] / p.weights[1])
-				b := -p.weights[0] / p.weights[2]
-				row = append(row, fmt.Sprintf("%.4f", m))
-				row = append(row, fmt.Sprintf("%.4f", b))
 				data = append(data, row)
 			}
 		}
 	}
 
 	p.validate(X, Y, true)
+	fmt.Println("w:", p.weights)
 	data = append(data, errr)
 
 	f, err := os.Create("results.csv")
@@ -214,7 +205,7 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 }
 
 // validate tests the model given a weights vector
-func (p *LMS) validate(X [][]float64, Y []float64, validacion bool) (C1out float64, C2out float64) {
+func (p *LMS) validate(X [][]float64, Y []float64, validacion bool) (tAc float64) {
 
 	C1Count := 0
 	C2Count := 0
@@ -228,11 +219,11 @@ func (p *LMS) validate(X [][]float64, Y []float64, validacion bool) (C1out float
 	end := 0
 
 	if validacion {
-		init = int(float64(len(X)) * 0.7)
+		init = int(float64(len(X)) * 0.75)
 		end = len(X)
 	} else {
 		init = 0
-		end = int(float64(len(X)) * 0.7)
+		end = int(float64(len(X)) * 0.75)
 	}
 
 	for i := init; i < end; i++ {
@@ -263,7 +254,9 @@ func (p *LMS) validate(X [][]float64, Y []float64, validacion bool) (C1out float
 			}
 		}
 	}
-	fmt.Println(C1Count, C2Count, "C1: ", C1Out, "C2: ", C2Out, "vP:", vP, "fP:", fP, "vN:", vN, "fN:", fN)
+	if validacion {
+		fmt.Println(C1Count, C2Count, "t:", vP+vN, "C1: ", C1Out, "C2: ", C2Out, "vP:", vP, "fP:", fP, "vN:", vN, "fN:", fN)
+	}
 
-	return float64(vP) / float64(C1Count), float64(vN) / float64(C2Count)
+	return (float64(vP) + float64(vN)) / (float64(C1Count) + float64(C2Count))
 }
