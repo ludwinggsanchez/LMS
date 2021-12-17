@@ -48,7 +48,7 @@ func main() {
 
 		//convert str slice to float slice
 		temp := []float64{}
-		for _, i := range data[:2] {
+		for _, i := range data[:3] {
 			parsedValue, err := strconv.ParseFloat(i, 64)
 			if err != nil {
 				panic(err)
@@ -61,7 +61,7 @@ func main() {
 		//explaining
 		X = append(X, temp)
 		//explained
-		if data[2] == "-1" {
+		if data[3] == "-1" {
 			Y = append(Y, -1.0)
 		} else {
 			Y = append(Y, 1.0)
@@ -143,6 +143,12 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 	var stop bool
 	for iter := 0; iter < p.iterNum; iter++ {
 		if stop {
+			fmt.Println("iter", iter)
+			// z = 1/C*(A*x + B*y + D);
+			fmt.Println("A = ", p.weights[0], ";")
+			fmt.Println("B = ", p.weights[1], ";")
+			fmt.Println("C = ", p.weights[3], ";")
+			fmt.Println("D = ", p.weights[2], ";")
 			break
 		}
 		for i := 0; i < len(X); i++ {
@@ -171,6 +177,7 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 					row = append(row, fmt.Sprintf("%.4f", p.weights[2]))
 					if c1, c2 := p.validate(X, Y, false); c1 > 0.5 && c2 > 0.5 {
 						stop = true
+						fmt.Println("i", i)
 						break
 					}
 				} else {
@@ -187,9 +194,7 @@ func (p *LMS) fit(X [][]float64, Y []float64) {
 			}
 		}
 	}
-	m := -p.weights[1] / p.weights[2]
-	b := -p.weights[0] / p.weights[2]
-	fmt.Println("y = x * ", m, " + ", b, ";")
+
 	p.validate(X, Y, true)
 	data = append(data, errr)
 
